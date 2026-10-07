@@ -1,0 +1,105 @@
+// Prisma schema - Sistema de Inventario a Tiempo Real
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== USUARIOS Y AUTENTICACIÓN =====
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("operador") // admin | operador | supervisor
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  movimientos Movimiento[]
+}
+
+// ===== CATÁLOGOS =====
+model Categoria {
+  id        String   @id @default(cuid())
+  nombre    String   @unique
+  createdAt DateTime @default(now())
+
+  productos Producto[]
+}
+
+model Producto {
+  id          String   @id @default(cuid())
+  codigo      String   @unique
+  nombre      String
+  descripcion String?
+  categoriaId String?
+  unidadMedida String   @default("unidad")
+  stockMinimo Int      @default(0)
+  stockActual Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categoria Categoria? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  lotes     Lote[]
+  movimientos Movimiento[]
+  alertas   Alerta[]
+}
+
+// ===== INVENTARIO =====
+model Lote {
+  id             String   @id @default(cuid())
+  productoId     String
+  numeroLote     String
+  cantidadInicial Int
+  cantidadActual  Int
+  fechaIngreso   DateTime @default(now())
+  fechaVencimiento DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  producto   Producto    @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  movimientos Movimiento[]
+  alertas    Alerta[]
+
+  @@unique([productoId, numeroLote])
+}
+
+model Movimiento {
+  id        String   @id @default(cuid())
+  loteId    String
+  productoId String
+  tipo      String   // entrada | salida
+  cantidad  Int
+  motivo    String?
+  fecha     DateTime @default(now())
+  usuarioId String?
+
+  lote     Lote     @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id])
+  usuario  User?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+}
+
+// ===== ALERTAS =====
+model Alerta {
+  id            String   @id @default(cuid())
+  tipo          String   // stock_bajo | vencimiento
+  productoId    String
+  loteId        String?
+  estado        String   @default("activa") // activa | atendida
+  fechaGeneracion DateTime @default(now())
+  fechaResolucion DateTime?
+
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  lote     Lote?    @relation(fields: [loteId], references: [id], onDelete: SetNull)
+}
+
+// ===== PARÁMETROS DEL SISTEMA (admin) =====
+model Parametro {
+  id    String @id @default(cuid())
+  clave String @unique
+  valor String
+}
