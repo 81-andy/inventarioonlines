@@ -52,3 +52,7 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# SQLite database (descomentar si no quieres subir la DB con datos demo)
+# db/*.db
+# db/*.db-journal
